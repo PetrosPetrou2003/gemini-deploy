@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golden Eye | Pawn OS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --gold: #FFD700; --dark: #121212; --card: #1e1e1e; --green: #00E676; --red: #FF5252; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 600px) { .container { grid-template-columns: 1fr; } }
+        .card { background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .full { grid-column: span 1; }
+        @media (min-width: 600px) { .full { grid-column: span 2; } }
+        
+        label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 15px; background: #2c2c2c; border: 1px solid #444; color: white; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        
+        .price-box { text-align: center; background: #161616; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        .spot-val { font-size: 2.5rem; font-weight: bold; color: white; }
+        .status-bar { font-size: 0.7rem; display: flex; align-items: center; gap: 5px; margin-bottom: 10px; justify-content: flex-end; }
+        .dot { height: 8px; width: 8px; border-radius: 50%; background: #555; }
+        .online { background: var(--green); box-shadow: 0 0 8px var(--green); }
+        .offline { background: var(--red); }
+
+        .loan-display { text-align: center; padding: 30px; border: 2px solid var(--gold); background: linear-gradient(145deg, #252525, #1e1e1e); }
+        .loan-amt { font-size: 4.5rem; color: var(--gold); font-weight: 800; line-height: 1; margin: 10px 0; }
+        
+        .alert-box { font-size: 0.8rem; padding: 10px; border-radius: 5px; background: rgba(255, 82, 82, 0.1); color: var(--red); display: none; margin-top: 10px; border: 1px solid rgba(255, 82, 82, 0.2); }
+        
+        input[type=range] { -webkit-appearance: none; background: #444; height: 4px; border-radius: 5px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 18px; background: var(--gold); border-radius: 50%; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="full" style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="margin:0; color:var(--gold);"><i class="fas fa-coins"></i> GOLDEN EYE</h2>
+        <div class="status-bar">
+            <div id="dot" class="dot"></div> <span id="statusTxt">Initializing...</span>
+        </div>
+    </div>    </div>
+
+    <div class="card">
+        <label>Weight (Grams)</label>
+        <input type="number" id="weight" value="10" step="0.01" oninput="calculate()">
+        
+        <label>Gold Purity</label>
+        <select id="karat" onchange="calculate()">
+            <option value="24">24k (99.9%)</option>
+            <option value="22">22k (91.6%)</option>
+            <option value="18" selected>18k (75.0%)</option>
+            <option value="14">14k (58.5%)</option>
+            <option value="9">9k (37.5%)</option>
+        </select>
+
+        <label>Base Margin: <span id="baseLabel" style="color:var(--gold)">4%</span></label>
+        <input type="range" id="baseMargin" min="1" max="15" value="4" oninput="calculate()">
+
+        <label>Interest Rate (Monthly): <span id="rateLabel" style="color:var(--green)">13%</span></label>
+        <input type="range" id="interestRate" min="5" max="25" value="13" oninput="calculate()">
+    </div>
+
+    <div class="card">
+        <label>Spot Gold (EUR/g)</label>
+        <div class="price-box">
+            <div id="price" class="spot-val">€--.--</div>
+            <div id="change" style="font-weight:bold; font-size:0.9rem;">--%</div>
+        </div>
+
+        <label>Safety Strategy</label>
+        <div style="font-size: 0.85rem; background:#161616; padding:12px; border-radius:8px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span>Market Risk:</span>
+                <span id="riskLevel" style="font-weight:bold; color:var(--green)">LOW</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+                <span>Effective Margin:</span>
+                <span id="effectiveMargin" style="font-weight:bold; color:var(--gold)">4%</span>
+            </div>
+        </div>
+        
+        <div id="riskAlert" class="alert-box">
+            <i class="fas fa-exclamation-triangle"></i> High Volatility Detected. Margin adjusted for safety.
+        </div>
+        
+        <button onclick="fetchPrice()" style="width:100%; margin-top:15px; padding:12px; background:#333; color:white; border:none; border-radius:8px; cursor:pointer;">
+            <i class="fas fa-sync-alt"></i> Refresh Price
+        </button>
+    </div>    <div class="card full loan-display">
+        <label style="color:white; opacity:0.6;">Maximum Loan Amount</label>
+        <div id="loan" class="loan-amt">€0.00</div>
+        <div style="font-size:0.8rem; color:#888;">
+            Estimated Return in 30 days: <span id="interest" style="color:var(--green)">€0.00</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentSpot = 0;
+    let dayChange = 0;
+    let autoPenalty = 0;
+
+    async function fetchPrice() {
+        const dot = document.getElementById('dot');
+        const statusTxt = document.getElementById('statusTxt');
+        
+        // NOW FETCHING FROM YOUR OWN SERVER
+        // This connects to the 'server.js' file you created
+        const target = '/api/price';
+
+        try {
+            statusTxt.innerText = "Connecting...";
+            const response = await fetch(target);
+            if (!response.ok) throw new Error("Server Error");
+
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error);
+
+            // Handle price format (some APIs return ounce, some gram)
+            // If price > 500, it's likely Ounce.
+            let priceVal = data.price_gram_24k;
+            if(!priceVal && data.price) {
+                priceVal = data.price / 31.1035;
+            }
+
+            currentSpot = priceVal;
+            dayChange = data.chp || 0;
+
+            // --- STRATEGY LOGIC ---
+            autoPenalty = 0;
+            let risk = "LOW";
+            
+            // Rule 1: Downtrend (Knife Catching)
+            if (dayChange < -0.6) { autoPenalty += 2; risk = "ELEVATED"; } 
+            
+            // Rule 2: Volatility (Panic)
+            if (Math.abs(dayChange) > 1.4) { autoPenalty += 3; risk = "HIGH"; }
+
+            updateUI(risk);
+            calculate();
+
+            dot.className = "dot online";
+            statusTxt.innerText = "Live Connected";
+        } catch (e) {
+            dot.className = "dot offline";
+            statusTxt.innerText = "Offline (Server Error)";
+            console.error(e);
+        }
+    }
+
+    function updateUI(risk) {
+        document.getElementById('price').innerText = "€" + currentSpot.toFixed(2);
+        const changeEl = document.getElementById('change');
+        changeEl.innerText = (dayChange > 0 ? "+" : "") + dayChange.toFixed(2) + "%";
+        changeEl.style.color = dayChange >= 0 ? "var(--green)" : "var(--red)";
+        
+        const riskEl = document.getElementById('riskLevel');
+        riskEl.innerText = risk;
+        riskEl.style.color = (risk === "LOW") ? "var(--green)" : "var(--red)";
+        document.getElementById('riskAlert').style.display = (risk === "LOW") ? "none" : "block";
+    }
+
+    function calculate() {
+        if (currentSpot === 0) return;
+
+        const weight = parseFloat(document.getElementById('weight').value) || 0;
+        const karat = parseInt(document.getElementById('karat').value);
+        const baseMargin = parseInt(document.getElementById('baseMargin').value);
+        const rate = parseInt(document.getElementById('interestRate').value);
+
+        // Update Labels
+        document.getElementById('baseLabel').innerText = baseMargin + "%";
+        document.getElementById('rateLabel').innerText = rate + "%";
+
+        // Strategy Math
+        const totalMargin = baseMargin + autoPenalty;
+        document.getElementById('effectiveMargin').innerText = totalMargin + "%";
+
+        const purity = karat / 24;
+        const scrapValue = currentSpot * purity * weight * 0.98; // Refining buffer
+        const loanAmt = scrapValue * ((100 - totalMargin) / 100);
+        const interestAmt = loanAmt * (rate / 100);
+
+        document.getElementById('loan').innerText = "€" + loanAmt.toFixed(2);
+        document.getElementById('interest').innerText = "€" + interestAmt.toFixed(2);
+    }
+
+    // Run on start
+    fetchPrice();
+</script>
+
+</body>
+</html>
